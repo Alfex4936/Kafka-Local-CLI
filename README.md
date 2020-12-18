@@ -1,9 +1,9 @@
 <div align="center">
 <p>
-    <img src="https://github.com/Alfex4936/Kafka-Local-CLI/imgs/MAIN.png">
-    <img src="https://github.com/Alfex4936/Kafka-Local-CLI/imgs/SERVER_RUN.png">
-    <img src="https://github.com/Alfex4936/Kafka-Local-CLI/imgs/SERVER_OFF.png">
-    <img src="https://github.com/Alfex4936/Kafka-Local-CLI/imgs/TOPIC_CREATE.png">
+    <img src="https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/imgs/MAIN.png">
+    <img src="https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/imgs/SERVER_RUN.png">
+    <img src="https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/imgs/SERVER_OFF.png">
+    <img src="https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/imgs/TOPIC_CREATE.png">
 </p>
 <h1>Kafka local CLI</h1>
 
