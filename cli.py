@@ -135,6 +135,61 @@ def turnOff(server):
         sock.close()
 
 
+def changeIP(server):
+    global ZK_IP, ZK_PORT
+    global KF_IP, KF_PORT
+
+    if server == "zookeeper":
+        questions = [
+            {
+                "type": "input",
+                "message": f"Zookeeper Server Address: ({ZK_IP}:{ZK_PORT})",
+                "name": "zk",
+                "default": "localhost:2181",
+            },
+            {
+                "type": "confirm",
+                "message": "= Do you want to continue? =",
+                "name": "exit",
+                "default": False,
+            },
+        ]
+
+        answers = prompt(questions, style=style)
+        if answers["exit"]:
+            print(">>> Terminating zookeeper...")
+            turnOff(server)
+            ZK_IP, ZK_PORT = answers["zk"].split(":")
+            runServer("zookeeper")
+        else:
+            return -1
+
+    elif server == "kafka":
+        questions = [
+            {
+                "type": "input",
+                "message": f"Kafka Server Address: ({KF_IP}:{KF_PORT})",
+                "name": "kf",
+                "default": "localhost:9092",
+            },
+            {
+                "type": "confirm",
+                "message": "= Do you want to continue? =",
+                "name": "exit",
+                "default": False,
+            },
+        ]
+
+        answers = prompt(questions, style=style)
+        if answers["exit"]:
+            print(">>> Terminating kafka...")
+            turnOff(server)
+            KF_IP, KF_PORT = answers["kf"].split(":")
+            runServer("kafka")
+        else:
+            return -1
+
+
 def createTopic():
     questions = [
         {
@@ -285,9 +340,11 @@ if __name__ == "__main__":
                     "message": "Server options",
                     "name": "server",
                     "choices": [
-                        Separator("= Server options (!Kafka first!) ="),
+                        Separator("= Server options ="),
                         {"name": "Turn off Kafka"},
                         {"name": "Turn off Zookeeper"},
+                        # {"name": "Change Zookeeper ip"},
+                        # {"name": "Change Kafka ip"},
                         {"name": "Skip"},
                     ],
                     "when": lambda answers: answers["topic"] == "Skip to next menu",
@@ -300,6 +357,10 @@ if __name__ == "__main__":
                     turnOff("kafka")
                 elif answers["server"] == "Turn off Zookeeper":
                     turnOff("zookeeper")
+                # elif answers["server"] == "Change Zookeeper ip":
+                #     changeIP("zookeeper")
+                # elif answers["server"] == "Change Kafka ip":
+                #     changeIP("kafka")
 
             if "topic" in answers:
                 if answers["topic"] == "Create":
@@ -310,7 +371,7 @@ if __name__ == "__main__":
             questions = [
                 {
                     "type": "confirm",
-                    "message": "= Do you want to exit? =",
+                    "message": "= Do you want to exit the program? =",
                     "name": "exit",
                     "default": False,
                 },
