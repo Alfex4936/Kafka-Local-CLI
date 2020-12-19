@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
 
+import argparse
 import os
 import shlex
 import socket
@@ -11,6 +12,12 @@ from PyInquirer import Separator, Token, prompt, style_from_dict
 
 ZK_STATUS = False  # Is zookeeper running?
 KF_STATUS = False  # Is kafka running?
+
+ZK_IP = "localhost"
+ZK_PORT = "2181"
+KF_IP = "localhost"
+KF_PORT = "9092"
+
 
 style = style_from_dict(
     {
@@ -27,6 +34,7 @@ style = style_from_dict(
 
 def runServer(server):
     global ZK_STATUS, KF_STATUS
+
     ERROR = 0
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -49,7 +57,7 @@ def runServer(server):
             if "ERROR" in line:
                 ERROR = 1
                 print("ZK LOG >>>", line)
-            if not ERROR and sock.connect_ex(("localhost", 2181)) == 0:
+            if not ERROR and sock.connect_ex((ZK_IP, int(ZK_PORT))) == 0:
                 ERROR = 0
                 ZK_STATUS = True
                 sock.close()
@@ -75,7 +83,6 @@ def runServer(server):
 
         for line in iter(result2.stdout.readline, b""):  # sentinel
             line = line.decode("utf-8")
-            print(line)
             if "WARN" in line:
                 print("KAFKA LOG >>>", line)
             if "BIND" in line:
@@ -83,7 +90,7 @@ def runServer(server):
             if "ERROR" in line:
                 ERROR = 1
                 print("KAFKA LOG >>>", line)
-            if not ERROR and sock.connect_ex(("localhost", 9092)) == 0:
+            if not ERROR and sock.connect_ex((KF_IP, int(KF_PORT))) == 0:
                 ERROR = 0
                 KF_STATUS = True
                 sock.close()
@@ -95,14 +102,21 @@ def runServer(server):
             sock.close()
             return -1
         return 1
+    else:
+        sock.close()
+        return -1
 
 
 def turnOff(server):
     global ZK_STATUS, KF_STATUS
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     if server == "kafka":
         result = subprocess.Popen(shlex.split("kafka-server-stop.sh"))
-        while sock.connect_ex(("localhost", 9092)) == 0:
+
+        while (
+            sock.connect_ex((KF_IP, int(KF_PORT))) == 0
+        ):  # wait for the connection is closed
             time.sleep(1)
 
         KF_STATUS = False
@@ -110,7 +124,10 @@ def turnOff(server):
         sock.close()
     elif server == "zookeeper":
         result = subprocess.Popen(shlex.split("zookeeper-server-stop.sh"))
-        while sock.connect_ex(("localhost", 2181)) == 0:
+
+        while (
+            sock.connect_ex((ZK_IP, int(ZK_PORT))) == 0
+        ):  # wait for the connection is closed
             time.sleep(1)
 
         ZK_STATUS = False
@@ -143,7 +160,7 @@ def createTopic():
     answers = prompt(questions, style=style)
     result = subprocess.Popen(
         shlex.split(
-            f"kafka-topics.sh --zookeeper localhost:2181 --topic {answers['topic_name']} --create --partitions {answers['partitions']} --replication-factor {answers['replication']}"
+            f"kafka-topics.sh --zookeeper {ZK_IP}:{ZK_PORT} --topic {answers['topic_name']} --create --partitions {answers['partitions']} --replication-factor {answers['replication']}"
         ),  # run in other process
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -169,7 +186,7 @@ def deleteTopic():
     answers = prompt(questions, style=style)
     result = subprocess.Popen(
         shlex.split(
-            f"kafka-topics.sh --zookeeper localhost:2181 --delete --topic {answers['topic_name']}"
+            f"kafka-topics.sh --zookeeper {ZK_IP}:{ZK_PORT} --delete --topic {answers['topic_name']}"
         ),  # run in other process
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -182,11 +199,31 @@ def deleteTopic():
     result.stdout.close()
 
 
+def getParser():
+    parser = argparse.ArgumentParser(description="Apache Kafka local CLI")
+    parser.add_argument(
+        "-zk",
+        "--zkServer",
+        type=str,
+        default="localhost:2181",
+        help="Zookeeper server ip",
+    )
+
+    parser.add_argument(
+        "-kf", "--kfServer", type=str, default="localhost:9092", help="Kafka server ip",
+    )
+    return parser
+
+
 if __name__ == "__main__":
+    args = getParser().parse_args()  # Arguments
+    ZK_IP, ZK_PORT = args.zkServer.split(":")
+    KF_IP, KF_PORT = args.kfServer.split(":")
+
     try:
         while True:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            if sock.connect_ex(("localhost", 2181)) == 0:  # Check everytime
+            if sock.connect_ex((ZK_IP, int(ZK_PORT))) == 0:  # Check everytime
                 ZK_STATUS = True
                 print(">>> Zookeeper is connected.")
             else:
@@ -195,7 +232,7 @@ if __name__ == "__main__":
             sock.close()
 
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            if sock.connect_ex(("localhost", 9092)) == 0:  # Check everytime
+            if sock.connect_ex((KF_IP, int(KF_PORT))) == 0:  # Check everytime
                 KF_STATUS = True
                 print(">>> Kafka is connected.")
             else:
