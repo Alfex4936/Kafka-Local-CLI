@@ -218,7 +218,6 @@ def createTopic():
             f"kafka-topics.sh --zookeeper {ZK_IP}:{ZK_PORT} --topic {answers['topic_name']} --create --partitions {answers['partitions']} --replication-factor {answers['replication']}"
         ),  # run in other process
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
     )
 
     for line in iter(result.stdout.readline, b""):
@@ -244,11 +243,54 @@ def deleteTopic():
             f"kafka-topics.sh --zookeeper {ZK_IP}:{ZK_PORT} --delete --topic {answers['topic_name']}"
         ),  # run in other process
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
     )
 
     for line in iter(result.stdout.readline, b""):
         line = line.decode("utf-8")
+        print(line)
+
+    result.stdout.close()
+
+
+def getTopicList():
+    result = subprocess.Popen(
+        shlex.split(
+            f"kafka-topics.sh --zookeeper {ZK_IP}:{ZK_PORT} --list"
+        ),  # run in other process
+        stdout=subprocess.PIPE,
+    )
+
+    index = 0
+    for line in iter(result.stdout.readline, b""):
+        index += 1
+        line = line.decode("utf-8")
+        print(f"{index}: {line}")
+
+    result.stdout.close()
+
+
+def getDescription():
+    questions = [
+        {
+            "type": "input",
+            "message": "A name of topic to see the description: (STR)",
+            "name": "topic_name",
+            "default": "sample-topic",
+        },
+    ]
+
+    answers = prompt(questions, style=style)
+    result = subprocess.Popen(
+        shlex.split(
+            f"kafka-topics.sh --zookeeper {ZK_IP}:{ZK_PORT} --topic {answers['topic_name']} --describe"
+        ),  # run in other process
+        stdout=subprocess.PIPE,
+    )
+    for line in iter(result.stdout.readline, b""):
+        line = line.decode("utf-8")
+        if "not exist" in line:
+            print(f">>> ERROR: {answers['topic_name']} does not exist.")
+            break
         print(line)
 
     result.stdout.close()
@@ -332,6 +374,8 @@ if __name__ == "__main__":
                         Separator("= Topic tools ="),
                         {"name": "Create"},
                         {"name": "Delete"},
+                        {"name": "Description"},
+                        {"name": "List"},
                         {"name": "Skip to next menu"},
                     ],
                 },
@@ -367,6 +411,10 @@ if __name__ == "__main__":
                     createTopic()
                 elif answers["topic"] == "Delete":
                     deleteTopic()
+                elif answers["topic"] == "Description":
+                    getDescription()
+                elif answers["topic"] == "List":
+                    getTopicList()
 
             questions = [
                 {
