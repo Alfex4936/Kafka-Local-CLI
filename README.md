@@ -21,7 +21,7 @@
 pip install PyInquirer
 ```
 
-Download [cli.py](https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/cli.py) into your kafka folder.
+Download [cli.py](https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/cli.py) and [pid.ini](https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/pid.ini) into your kafka folder.
 
 ## Usage
 
@@ -29,6 +29,8 @@ Run [cli.py](https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/cli.py) in y
 
 By default, zookeeper address is "localhost:2181" and
 kafka address is "localhost:9092"
+
+(PID in your pid.ini so you can control it with your desires)
 
 ```console
 ~/kafka$ python cli.py
