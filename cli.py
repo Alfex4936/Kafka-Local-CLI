@@ -7,6 +7,7 @@ import socket
 import subprocess
 import time
 
+from configparser import ConfigParser
 from PyInquirer import Separator, Token, prompt, style_from_dict
 
 
@@ -18,6 +19,7 @@ ZK_PORT = "2181"
 KF_IP = "localhost"
 KF_PORT = "9092"
 
+config = ConfigParser()
 
 style = style_from_dict(
     {
@@ -34,12 +36,13 @@ style = style_from_dict(
 
 def runServer(server):
     global ZK_STATUS, KF_STATUS
+    config.read("pid.ini")
 
     ERROR = 0
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     if server == "zookeeper":
-        result = subprocess.Popen(
+        zKProcess = subprocess.Popen(
             shlex.split(
                 "nohup zookeeper-server-start.sh ./config/zookeeper.properties"
             ),  # run in other process
@@ -47,8 +50,10 @@ def runServer(server):
             stderr=subprocess.STDOUT,
             preexec_fn=os.setpgrp,
         )
+        print("ZK PID >>>", zKProcess.pid)
+        config.set("PID", "ZOOKEEPER_SERVER", str(zKProcess.pid))
 
-        for line in iter(result.stdout.readline, b""):  # sentinel
+        for line in iter(zKProcess.stdout.readline, b""):  # sentinel
             line = line.decode("utf-8")
             if "WARN" in line:
                 print("ZK LOG >>>", line)
@@ -63,15 +68,20 @@ def runServer(server):
                 sock.close()
                 break
 
-        result.stdout.close()
+        zKProcess.stdout.close()
+
         if ERROR:
             ZK_STATUS = False
             sock.close()
             return -1
+
+        with open("pid.ini", "w") as f:
+            config.write(f)
+
         return 1
 
     elif server == "kafka":
-        result2 = subprocess.Popen(
+        kfProcess = subprocess.Popen(
             shlex.split(
                 "nohup kafka-server-start.sh ./config/server.properties"
             ),  # run in other process
@@ -79,9 +89,11 @@ def runServer(server):
             stderr=subprocess.STDOUT,
             preexec_fn=os.setpgrp,
         )
+        print("KAFKA PID >>>", kfProcess.pid)
+        config.set("PID", "KAFKA_SERVER", str(kfProcess.pid))
         time.sleep(10)  # give it a time to check connection.
 
-        for line in iter(result2.stdout.readline, b""):  # sentinel
+        for line in iter(kfProcess.stdout.readline, b""):  # sentinel
             line = line.decode("utf-8")
             if "WARN" in line:
                 print("KAFKA LOG >>>", line)
@@ -96,11 +108,14 @@ def runServer(server):
                 sock.close()
                 break
 
-        result2.stdout.close()
+        kfProcess.stdout.close()
         if ERROR:
             KF_STATUS = False
             sock.close()
             return -1
+
+        with open("pid.ini", "w") as f:
+            config.write(f)
         return 1
     else:
         sock.close()
@@ -216,7 +231,7 @@ def createTopic():
     result = subprocess.Popen(
         shlex.split(
             f"kafka-topics.sh --zookeeper {ZK_IP}:{ZK_PORT} --topic {answers['topic_name']} --create --partitions {answers['partitions']} --replication-factor {answers['replication']}"
-        ),  # run in other process
+        ),
         stdout=subprocess.PIPE,
     )
 
@@ -241,7 +256,7 @@ def deleteTopic():
     result = subprocess.Popen(
         shlex.split(
             f"kafka-topics.sh --zookeeper {ZK_IP}:{ZK_PORT} --delete --topic {answers['topic_name']}"
-        ),  # run in other process
+        ),
         stdout=subprocess.PIPE,
     )
 
@@ -254,9 +269,7 @@ def deleteTopic():
 
 def getTopicList():
     result = subprocess.Popen(
-        shlex.split(
-            f"kafka-topics.sh --zookeeper {ZK_IP}:{ZK_PORT} --list"
-        ),  # run in other process
+        shlex.split(f"kafka-topics.sh --zookeeper {ZK_IP}:{ZK_PORT} --list"),
         stdout=subprocess.PIPE,
     )
 
@@ -283,7 +296,7 @@ def getDescription():
     result = subprocess.Popen(
         shlex.split(
             f"kafka-topics.sh --zookeeper {ZK_IP}:{ZK_PORT} --topic {answers['topic_name']} --describe"
-        ),  # run in other process
+        ),
         stdout=subprocess.PIPE,
     )
     for line in iter(result.stdout.readline, b""):
@@ -294,6 +307,43 @@ def getDescription():
         print(line)
 
     result.stdout.close()
+
+
+def getLog(server):
+    print("Press CTRL + C to end logging.")
+    config.read("pid.ini")
+
+    if server == "kafka":
+        KF_PID = config.getint("PID", "KAFKA_SERVER")
+        result = subprocess.Popen(
+            shlex.split(f"cat /proc/{KF_PID}/fd/1"), stdout=subprocess.PIPE,
+        )
+        try:
+            logNo = 0
+            for line in iter(result.stdout.readline, b""):
+                line = line.decode("utf-8")
+                print(f"{logNo}: {line}")
+                logNo += 1
+        except KeyboardInterrupt:
+            print("Pressed CTRL+C...")
+            result.stdout.close()
+            return -1
+    elif server == "zookeeper":
+        ZK_PID = config.getint("PID", "ZOOKEEPER_SERVER")
+
+        result = subprocess.Popen(
+            shlex.split(f"cat /proc/{ZK_PID}/fd/1"), stdout=subprocess.PIPE,
+        )
+        logNo = 0
+        try:
+            for line in iter(result.stdout.readline, b""):
+                line = line.decode("utf-8")
+                print(f"{logNo}: {line}")
+                logNo += 1
+        except KeyboardInterrupt:
+            print("Pressed CTRL+C...")
+            result.stdout.close()
+            return -1
 
 
 def getParser():
@@ -310,6 +360,19 @@ def getParser():
         "-kf", "--kfServer", type=str, default="localhost:9092", help="Kafka server ip",
     )
     return parser
+
+
+def checkServer(answers):
+    if answers.get("topic", False) != "Skip to next menu":
+        return False
+    return ZK_STATUS or KF_STATUS  # if choice system went wrong. (missing "topic")
+
+
+def checkAnswer(answers):
+    if answers.get("topic", False) == "Skip to next menu":
+        if "log" in answers and answers["log"] == "Skip to next menu":
+            return True
+    return False
 
 
 if __name__ == "__main__":
@@ -381,6 +444,18 @@ if __name__ == "__main__":
                 },
                 {
                     "type": "list",
+                    "message": "Server logging",
+                    "name": "log",
+                    "choices": [
+                        Separator("= Server ="),
+                        {"name": "Show Zookeeper log"},
+                        {"name": "Show Kafka log"},
+                        {"name": "Skip to next menu"},
+                    ],
+                    "when": checkServer,  # at least, one server must be available
+                },
+                {
+                    "type": "list",
                     "message": "Server options",
                     "name": "server",
                     "choices": [
@@ -389,9 +464,9 @@ if __name__ == "__main__":
                         {"name": "Turn off Zookeeper"},
                         # {"name": "Change Zookeeper ip"},
                         # {"name": "Change Kafka ip"},
-                        {"name": "Skip"},
+                        {"name": "See menu again"},
                     ],
-                    "when": lambda answers: answers["topic"] == "Skip to next menu",
+                    "when": checkAnswer,  # PyInquirer "when" must use a function with answers parameter.
                 },
             ]
 
@@ -405,6 +480,12 @@ if __name__ == "__main__":
                 #     changeIP("zookeeper")
                 # elif answers["server"] == "Change Kafka ip":
                 #     changeIP("kafka")
+
+            if "log" in answers:
+                if answers["log"] == "Show Kafka log":
+                    getLog("kafka")
+                elif answers["log"] == "Show Zookeeper log":
+                    getLog("zookeeper")
 
             if "topic" in answers:
                 if answers["topic"] == "Create":
