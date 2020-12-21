@@ -3,6 +3,7 @@
     <img src="https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/imgs/MAIN.png">
     <img src="https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/imgs/SERVER_RUN.png">
     <img src="https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/imgs/SERVER_OFF.png">
+    <img src="https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/imgs/READ_LOG.png">
     <img src="https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/imgs/TOPIC_CREATE.png">
     <img src="https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/imgs/TOPIC_DESC.png">
     <img src="https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/imgs/TOPIC_LIST.png">
@@ -22,6 +23,16 @@ pip install PyInquirer
 ```
 
 Download [cli.py](https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/cli.py) and [pid.ini](https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/pid.ini) into your kafka folder.
+
+
+## Features
+* Run Kafka/Zookeeper in background (with output)
+* Read logs from kafka/zookeeper even after turning off python (Servers must be same, *pids* are in your pid.ini)
+* Create a topic (name, num of partitions, num of replication factor)
+* Delete a topic (Set *delete.topic.enable=True* in your server.properties)
+* Get topic list
+* Get your wanted topic description
+* Turn off servers
 
 ## Usage
 
