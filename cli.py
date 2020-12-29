@@ -346,6 +346,72 @@ def getLog(server):
             return -1
 
 
+def produceTopic():
+    question = [
+        {
+            "type": "input",
+            "message": "A name of topic to produce data: (STR)",
+            "name": "topic_name",
+            "default": "sample-topic",
+        },
+    ]
+
+    answers = prompt(question, style=style)
+    print("Press CTRL + C to terminate producer.")
+    print(f"--broker-list {KF_IP}:{KF_PORT}")
+
+    producer = subprocess.Popen(
+        shlex.split(
+            f"kafka-console-producer.sh --broker-list {KF_IP}:{KF_PORT} --topic {answers['topic_name']}"
+        ),
+        stdout=subprocess.PIPE,
+    )
+    print()
+    try:
+        for line in iter(producer.stdout.readline, b""):
+            line = line.decode("utf-8")
+            print(line)
+    except KeyboardInterrupt:
+        print("Pressed CTRL+C...")
+        producer.stdout.close()
+        print()
+        return -1
+
+
+def consumeTopic():
+    question = [
+        {
+            "type": "input",
+            "message": "A name of topic to consume data: (STR)",
+            "name": "topic_name",
+            "default": "sample-topic",
+        },
+    ]
+
+    answers = prompt(question, style=style)
+
+    print("Press CTRL + C to terminate consumer.")
+    print(f"--bootstrap-server {KF_IP}:{KF_PORT}")
+    consumer = subprocess.Popen(
+        shlex.split(
+            f"kafka-console-consumer.sh --bootstrap-server {KF_IP}:{KF_PORT} --topic {answers['topic_name']}"
+        ),
+        stdout=subprocess.PIPE,
+    )
+    print()
+    try:
+        logNo = 0
+        for line in iter(consumer.stdout.readline, b""):
+            line = line.decode("utf-8")
+            print(f"{logNo} {line.rstrip()}")
+            logNo += 1
+    except KeyboardInterrupt:
+        print("Pressed CTRL+C...")
+        consumer.stdout.close()
+        print()
+        return -1
+
+
 def getParser():
     parser = argparse.ArgumentParser(description="Apache Kafka local CLI")
     parser.add_argument(
@@ -435,6 +501,8 @@ if __name__ == "__main__":
                     "name": "topic",
                     "choices": [
                         Separator("= Topic tools ="),
+                        {"name": "Produce"},
+                        {"name": "Consume"},
                         {"name": "Create"},
                         {"name": "Delete"},
                         {"name": "Description"},
@@ -496,6 +564,10 @@ if __name__ == "__main__":
                     getDescription()
                 elif answers["topic"] == "List":
                     getTopicList()
+                elif answers["topic"] == "Produce":
+                    produceTopic()
+                elif answers["topic"] == "Consume":
+                    consumeTopic()
 
             questions = [
                 {
