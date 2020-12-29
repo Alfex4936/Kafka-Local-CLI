@@ -31,6 +31,7 @@ Download [cli.py](https://github.com/Alfex4936/Kafka-Local-CLI/blob/main/cli.py)
 * Create a topic (name, num of partitions, num of replication factor)
 * Delete a topic (Set *delete.topic.enable=True* in your server.properties)
 * Get topic list
+* Produce data / Consume data from a topic
 * Get your wanted topic description
 * Turn off servers
 
